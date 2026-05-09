@@ -6,11 +6,12 @@ import path from 'path'
 import fs from 'fs'
 import swaggerUI from 'swagger-ui-express';
 
-import swaggerDocument from './docs/openapi.json' with { type: 'json' };
+import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
 import 'dotenv/config';
 import knexConfig from './knexfile.js';
 import apiRouter from './routes/api.js';
 import userRouter from './routes/user.js';
+import ratingsRouter from './routes/ratings.js';
 
 
 const app = express();
@@ -32,6 +33,7 @@ app.use(morgan('common'));
 
 app.use('/api', apiRouter);
 app.use('/user', userRouter);
+app.use('/ratings', ratingsRouter);
 
 app.use('/docs', swaggerUI.serve);
 app.get('/docs', swaggerUI.setup(swaggerDocument));
