@@ -46,32 +46,6 @@ const calculateAverageRating = (ratings) => {
         accumulator + current.rating, 0) / ratings.length;
 };
 
-router.get("/:id", noQueryParameters, async (req, res) => {
-    const id = req.params.id;
-    try {
-        const rows = await req.db.from("data").select('*').where("id", "=", id);
-        if (rows.length !== 1) {
-            return res.status(404).json({
-                error: "true",
-                message: "No rental exists with this ID."
-            });
-        }
-
-        const ratings = await req.db.from("ratings").select("*").where("propertyId", "=", id);
-        const averageRating = calculateAverageRating(ratings);
-
-        const property = rows[0];
-        property.reviews = ratings;
-        property.averageRating = averageRating;
-        return res.status(200).json(rows[0]);
-    } catch (e) {
-        res.status(500).json({
-            error: true,
-            message: e.message
-        });
-    }
-});
-
 const errorResponse = (message) => {
     return {
         error: true,
@@ -80,7 +54,7 @@ const errorResponse = (message) => {
 }
 
 const isNonNegativeInt = (number) => {
-    return Number.isInteger(postcode) || postcode >= 0;
+    return Number.isInteger(number) || number >= 0;
 }
 
 router.get("/search", async (req, res) => {
@@ -251,31 +225,62 @@ router.get("/search", async (req, res) => {
         .from("data")
         .select("*")
         .where(searchConditions)
-        .orderBy(sortOption, sortDir)
-        .limit(10)
+        .modify((queryBuilder) => {
+            if (sortOption) {
+                queryBuilder.orderBy(sortOption, sortDir);
+            }
+        }).limit(10)
         .offset((pageNum - 1) * 10);
 
-    if (Object.keys(ratingConditions).length > 0) {
-        let filteredRows = []
-        for (const row of rows) {
-            const propertyId = row.id;
-            const ratingRows = await req.db
-                .from("ratings")
-                .select("rating")
-                .where("propertyId", '=', propertyId);
-            const average_rating = calculateAverageRating(ratingRows);
+    let filteredRows = []
+    for (const row of rows) {
+        const propertyId = row.id;
 
+        const ratingRows = await req.db
+            .from("ratings")
+            .select("rating")
+            .where("propertyId", '=', propertyId);
+        const average_rating = calculateAverageRating(ratingRows);
+
+        if (Object.keys(ratingConditions).length > 0) {
             if (ratingConditions.minimumRating && average_rating < ratingConditions.minimumRating
                 || ratingConditions.maximumRating && average_rating > ratingConditions.maximumRating
             ) {
                 continue;
             }
-            row.averageRating = average_rating;
-            filteredRows.push(row);
+        }
+        row.averageRating = average_rating === null ? 0 : average_rating;
+        filteredRows.push(row);
+    }
+
+    res.status(200).json(filteredRows);
+
+});
+
+router.get("/:id", noQueryParameters, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const rows = await req.db.from("data").select('*').where("id", "=", id);
+        if (rows.length !== 1) {
+            return res.status(404).json({
+                error: "true",
+                message: "No rental exists with this ID."
+            });
         }
 
-        res.status(200).json(filteredRows);
+        const ratings = await req.db.from("ratings").select("*").where("propertyId", "=", id);
+        const averageRating = calculateAverageRating(ratings);
+
+        const property = rows[0];
+        property.reviews = ratings;
+        property.averageRating = averageRating;
+        return res.status(200).json(rows[0]);
+    } catch (e) {
+        res.status(500).json({
+            error: true,
+            message: e.message
+        });
     }
-})
+});
 
 export default router;
