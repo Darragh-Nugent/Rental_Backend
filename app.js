@@ -12,6 +12,7 @@ import knexConfig from './knexfile.js';
 import apiRouter from './routes/api.js';
 import userRouter from './routes/user.js';
 import ratingsRouter from './routes/ratings.js';
+import rentalRouter from './routes/rentals.js'
 
 
 const app = express();
@@ -34,6 +35,7 @@ app.use(morgan('common'));
 app.use('/api', apiRouter);
 app.use('/user', userRouter);
 app.use('/ratings', ratingsRouter);
+app.use('/rentals', rentalRouter);
 
 app.use('/docs', swaggerUI.serve);
 app.get('/docs', swaggerUI.setup(swaggerDocument));
