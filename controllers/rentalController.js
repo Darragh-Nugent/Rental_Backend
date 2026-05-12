@@ -1,44 +1,8 @@
 import express from 'express';
-import authorisation from '../middleware/authorisation.js';
-import noQueryParameters from '../middleware/middleware.js';
 
-const router = express.Router();
-
-router.get("/states", noQueryParameters, (req, res) => {
-    try {
-        req.db.from("data").distinct("state").orderBy("state")
-            .then((rows) => {
-                let states = [];
-                rows.forEach(row => {
-                    states.push(row.state)
-                });
-                return res.status(200).json(states);
-            });
-    } catch (e) {
-        res.status(500).json({
-            error: true,
-            message: e.message
-        });
-    }
-});
-
-router.get("/property-types", noQueryParameters, (req, res) => {
-    try {
-        req.db.from("data").distinct("propertyType").orderBy("propertyType")
-            .then((rows) => {
-                let propertyTypes = [];
-                rows.forEach(row => {
-                    propertyTypes.push(row.propertyType)
-                });
-                return res.status(200).json(propertyTypes);
-            });
-    } catch (e) {
-        res.status(500).json({
-            error: true,
-            message: e.message
-        });
-    }
-});
+import * as rentalModel from '../models/rentalsModel.js';
+import * as ratingModel from '../models/ratingsModel.js';
+import { errorResponse } from '../utils/utils.js';
 
 const calculateAverageRating = (ratings) => {
     console.log(ratings);
@@ -46,18 +10,43 @@ const calculateAverageRating = (ratings) => {
         accumulator + current.rating, 0) / ratings.length;
 };
 
-const errorResponse = (message) => {
-    return {
-        error: true,
-        message: message
-    };
-}
-
 const isNonNegativeInt = (number) => {
     return Number.isInteger(number) || number >= 0;
 }
 
-router.get("/search", async (req, res) => {
+export async function getStates(req, res) {
+    try {
+        const rows = await rentalModel.GetStates(req.db);
+        let states = [];
+        rows.forEach(row => {
+            states.push(row.state)
+        });
+        return res.status(200).json(states);
+    } catch (e) {
+        res.status(500).json({
+            error: true,
+            message: e.message
+        });
+    }
+}
+
+export async function getPropertyTypes(req, res) {
+    try {
+        const rows = await rentalModel.GetPropertyTypes(req.db);
+        let propertyTypes = [];
+        rows.forEach(row => {
+            propertyTypes.push(row.propertyType)
+        });
+        return res.status(200).json(propertyTypes);
+    } catch (e) {
+        res.status(500).json({
+            error: true,
+            message: e.message
+        });
+    }
+}
+
+export async function searchRentals(req, res) {
     const searchParams = req.query;
 
     let searchConditions = {};
@@ -221,25 +210,20 @@ router.get("/search", async (req, res) => {
     }
     pageNum = searchParams.page;
 
-    const rows = await req.db
-        .from("data")
-        .select("*")
-        .where(searchConditions)
-        .modify((queryBuilder) => {
-            if (sortOption) {
-                queryBuilder.orderBy(sortOption, sortDir);
-            }
-        }).limit(10)
-        .offset((pageNum - 1) * 10);
+    const searchData = {
+        searchConditions: searchConditions,
+        sortOption: sortOption,
+        sortDir: sortDir,
+        pageNum: pageNum
+    };
+
+    const rows = await rentalModel.SearchProperties(req.db, searchData);
 
     let filteredRows = []
     for (const row of rows) {
         const propertyId = row.id;
 
-        const ratingRows = await req.db
-            .from("ratings")
-            .select("rating")
-            .where("propertyId", '=', propertyId);
+        const ratingRows = await ratingModel.GetRatings(req.db, propertyId);
         const average_rating = calculateAverageRating(ratingRows);
 
         if (Object.keys(ratingConditions).length > 0) {
@@ -254,13 +238,12 @@ router.get("/search", async (req, res) => {
     }
 
     res.status(200).json(filteredRows);
+}
 
-});
-
-router.get("/:id", noQueryParameters, async (req, res) => {
+export async function getRentalFromId(req, res) {
     const id = req.params.id;
     try {
-        const rows = await req.db.from("data").select('*').where("id", "=", id);
+        const rows = await rentalModel.GetProperty(req.db, id);
         if (rows.length !== 1) {
             return res.status(404).json({
                 error: "true",
@@ -268,7 +251,7 @@ router.get("/:id", noQueryParameters, async (req, res) => {
             });
         }
 
-        const ratings = await req.db.from("ratings").select("*").where("propertyId", "=", id);
+        const ratings = await ratingModel.GetRatings(req.db, id);
         const averageRating = calculateAverageRating(ratings);
 
         const property = rows[0];
@@ -281,6 +264,4 @@ router.get("/:id", noQueryParameters, async (req, res) => {
             message: e.message
         });
     }
-});
-
-export default router;
+}

@@ -11,8 +11,8 @@ import 'dotenv/config';
 import knexConfig from './knexfile.js';
 import apiRouter from './routes/api.js';
 import userRouter from './routes/user.js';
-import ratingsRouter from './routes/ratings.js';
-import rentalRouter from './routes/rentals.js'
+import ratingsRouter from './routes/ratingsRoute.js';
+import rentalRouter from './routes/rentalRoute.js'
 
 
 const app = express();
