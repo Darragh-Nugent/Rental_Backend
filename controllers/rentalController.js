@@ -223,7 +223,7 @@ export async function searchRentals(req, res) {
     for (const row of rows) {
         const propertyId = row.id;
 
-        const ratingRows = await ratingModel.GetRatings(req.db, propertyId);
+        const ratingRows = await ratingModel.GetAllRatingsFromId(req.db, propertyId);
         const average_rating = calculateAverageRating(ratingRows);
 
         if (Object.keys(ratingConditions).length > 0) {
@@ -251,7 +251,7 @@ export async function getRentalFromId(req, res) {
             });
         }
 
-        const ratings = await ratingModel.GetRatings(req.db, id);
+        const ratings = await ratingModel.GetAllRatingsFromId(req.db, id);
         const averageRating = calculateAverageRating(ratings);
 
         const property = rows[0];

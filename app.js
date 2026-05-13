@@ -3,13 +3,13 @@ import knex from 'knex';
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path'
-import fs from 'fs'
+import https from 'node:https';
+import fs from 'node:fs';import knexConfig from './knexfile.js';
 import swaggerUI from 'swagger-ui-express';
 
 import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
 import 'dotenv/config';
-import knexConfig from './knexfile.js';
-import apiRouter from './routes/api.js';
+
 import userRouter from './routes/user.js';
 import ratingsRouter from './routes/ratingsRoute.js';
 import rentalRouter from './routes/rentalRoute.js'
@@ -32,7 +32,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 app.use(morgan('common'));
 
-app.use('/api', apiRouter);
 app.use('/user', userRouter);
 app.use('/ratings', ratingsRouter);
 app.use('/rentals', rentalRouter);
@@ -62,6 +61,11 @@ app.get("/knex", (req, res, next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
-}); 
+const credentials = {
+  key: fs.readFileSync('./certs/selfsigned.key'),
+  cert: fs.readFileSync('./certs/selfsigned.crt')
+};
+
+https.createServer(credentials, app).listen(port, () => {
+  console.log(`Server listening on https://localhost:${port}`);
+});
