@@ -1,5 +1,5 @@
 import express from 'express';
-import authorisation from '../middleware/authorisation.js';
+import {authorisation} from '../middleware/authorisation.js';
 import noQueryParameters from '../middleware/middleware.js';
 import * as rentalController from '../controllers/rentalController.js';
 

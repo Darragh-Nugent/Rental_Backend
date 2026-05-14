@@ -19,14 +19,14 @@ export async function login(req, res) {
     if (!email || !password) {
         res.status(400).json({
             error: true,
-            message: "Request body incomplete - email and password needed"
+            message: "Request body incomplete, both email and password are required"
         });
         return;
     }
     // 2. Determine if user already exists in table
     const users = await userModel.getUserFromEmail(req.db, email);
     if (users.length === 0) {
-        throw new Error("User does not exist");
+        return res.status(401).json(errorResponse("Incorrect email or password"))
     }
     // 2.1 If user does exist, verify if passwords match
     const { hash } = users[0];
@@ -34,7 +34,7 @@ export async function login(req, res) {
 
     if (match) {
         // 2.1.1 If passwords match, return JWT
-        const expiresIn = 60 * 60 * 10;
+        const expiresIn = 24 * 60 * 60 * 10;
         const exp = Math.floor(Date.now() / 1000) + expiresIn;
         const token = jwt.sign({ exp, email }, process.env.JWT_SECRET);
         res.status(200).json({
@@ -44,7 +44,7 @@ export async function login(req, res) {
         });
     } else {
         // 2.1.2 If passwords do not match, return error response
-        throw new Error("Passwords do not match");
+        return res.status(401).json(errorResponse("Incorrect email or password"))
     }
 }
 
@@ -56,7 +56,7 @@ export async function debugLogin(req, res) {
     if (!email || !password) {
         res.status(400).json({
             error: true,
-            message: "Request body incomplete - email and password needed"
+            message: "Request body incomplete, both email and password are required"
         });
         return;
     }
@@ -64,7 +64,7 @@ export async function debugLogin(req, res) {
     const users = await userModel.getUserFromEmail(req.db, email);
 
     if (users.length === 0) {
-        throw new Error("User does not exist");
+        return res.status(401).json(errorResponse("Incorrect email or password"))
     }
     // 2.1 If user does exist, verify if passwords match
     const { hash } = users[0];
@@ -81,7 +81,7 @@ export async function debugLogin(req, res) {
         });
     } else {
         // 2.1.2 If passwords do not match, return error response
-        throw new Error("Passwords do not match");
+        return res.status(401).json(errorResponse("Incorrect email or password"))
     }
 }
 
@@ -94,7 +94,7 @@ export async function register(req, res) {
         if (!email || !password) {
             return res.status(400).json({
                 error: true,
-                message: "Request body incomplete - email and password needed"
+                message: "Request body incomplete, both email and password are required"
             });
         }
 
@@ -123,7 +123,7 @@ export async function getUserProfileFromEmail(req, res) {
 
         let profile = rows[0];
         let data;
-        if (req.params.tokenEmail === profile.email) {
+        if (req.params.token !== null && req.params.tokenEmail === profile.email) {
             data = {
                 "email": profile.email,
                 "firstName": profile.firstName,
@@ -147,7 +147,7 @@ export async function getUserProfileFromEmail(req, res) {
 export async function putUserProfileFromEmail(req, res) {
     try {
         // Authorisation check
-        if (req.params.tokenEmail !== req.params.email) {
+        if (req.params.tokenEmail !== null && req.params.tokenEmail !== req.params.email) {
             return res.status(403).json({
                 error: true,
                 message: "Forbidden"
@@ -158,10 +158,8 @@ export async function putUserProfileFromEmail(req, res) {
 
         // Required fields check
         if (!firstName || !lastName || !dob || !address) {
-            return res.status(400).json({
-                error: true,
-                message: "Request body incomplete: firstName, lastName, dob and address are required."
-            });
+            return res.status(400)
+            .json(errorResponse("Request body incomplete: firstName, lastName, dob and address are required."));
         }
 
         // Type validation
@@ -171,28 +169,27 @@ export async function putUserProfileFromEmail(req, res) {
             typeof dob !== "string" ||
             typeof address !== "string"
         ) {
-            return res.status(400).json({
-                error: true,
-                message: "Request body invalid: firstName, lastName, dob and address must be strings."
-            });
+            return res.status(400)
+            .json(errorResponse("Request body invalid: firstName, lastName and address must be strings only."));
         }
 
         // Date validation
         if (!checkIfDate(dob)) {
-            return res.status(400).json({
-                error: true,
-                message: "Invalid input: dob must be a real date in format YYYY-MM-DD."
-            });
+            return res.status(400)
+            .json(errorResponse("Invalid input: dob must be a real date in format YYYY-MM-DD."));
+        }
+
+        if (new Date(dob) > Date.now()) {
+            return res.status(400)
+            .json(errorResponse("Invalid input: dob must be a date in the past."));
         }
 
         // Check user exists
         const rows = await userModel.getUserFromEmail(req.db, req.params.email);
 
         if (rows.length === 0) {
-            return res.status(404).json({
-                error: true,
-                message: "User not found"
-            });
+            return res.status(404)
+            .json(errorResponse("User not found"));
         }
 
         const profile = {
@@ -208,9 +205,6 @@ export async function putUserProfileFromEmail(req, res) {
 
         return res.status(200).json(profile);
     } catch (e) {
-        return res.status(500).json({
-            error: true,
-            message: e.message
-        });
+        return res.status(500).json(errorResponse(e.message));
     }
 }

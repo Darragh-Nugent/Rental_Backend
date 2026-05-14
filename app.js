@@ -10,7 +10,7 @@ import swaggerUI from 'swagger-ui-express';
 import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
 import 'dotenv/config';
 
-import userRouter from './routes/user.js';
+import userRouter from './routes/userRoute.js';
 import ratingsRouter from './routes/ratingsRoute.js';
 import rentalRouter from './routes/rentalRoute.js'
 
