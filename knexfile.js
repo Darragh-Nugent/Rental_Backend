@@ -5,6 +5,7 @@ export default {
     user: 'root',
     password: 'root',
     database: 'rentals',
+    dateStrings: true
   },
 };
 

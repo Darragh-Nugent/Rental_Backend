@@ -1,5 +1,5 @@
-const calculateAverageRating = (ratings) => {
-    return ratings.reduce((accumulator, current) => accumulator + current) / ratings.len;
+export const calculateAverageRating = (ratings) => {
+    return ratings.reduce((accumulator, current) => accumulator + current) / ratings.length;
 };
 
 export const errorResponse = (message) => {

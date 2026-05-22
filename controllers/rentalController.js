@@ -2,13 +2,10 @@ import express from 'express';
 
 import * as rentalModel from '../models/rentalsModel.js';
 import * as ratingModel from '../models/ratingsModel.js';
-import { errorResponse } from '../utils/utils.js';
+import * as userModel from '../models/userModel.js';
+import { errorResponse, calculateAverageRating } from '../utils/utils.js';
 
-const calculateAverageRating = (ratings) => {
-    console.log(ratings);
-    return ratings.reduce((accumulator, current) =>
-        accumulator + current.rating, 0) / ratings.length;
-};
+
 
 const isNonNegativeInt = (number) => {
     return Number.isInteger(number) || number >= 0;
@@ -140,7 +137,7 @@ export async function searchRentals(req, res) {
                 errorResponse("Invalid maximumParking parameter. Must be a non-negative integer."
                 ));
         }
-        ratingConditions.maximumParking = maximumParking;
+        searchConditions.maximumParking = maximumParking;
     }
 
     // For rating conditions, add to seporate conditions object
@@ -203,12 +200,12 @@ export async function searchRentals(req, res) {
         sortDir = searchParams.orderBy;
     }
 
-    if (!searchParams.page || !isNonNegativeInt(searchParams.page) || searchParams.page < 1) {
-        return res.status(400).json(
-            errorResponse("Invalid page parameter. Must be an integer greater than or equal to 1.")
-        );
-    }
-    pageNum = searchParams.page;
+    // if (!searchParams.page || !isNonNegativeInt(searchParams.page) || searchParams.page < 1) {
+    //     return res.status(400).json(
+    //         errorResponse("Invalid page parameter. Must be an integer greater than or equal to 1.")
+    //     );
+    // }
+    pageNum = searchParams.page == undefined ? 1 : searchParams.page;
 
     const searchData = {
         searchConditions: searchConditions,
@@ -223,8 +220,15 @@ export async function searchRentals(req, res) {
     for (const row of rows) {
         const propertyId = row.id;
 
-        const ratingRows = await ratingModel.GetAllRatingsFromId(req.db, propertyId);
-        const average_rating = calculateAverageRating(ratingRows);
+        row.longitude = parseFloat(row.longitude);
+        row.latitude = parseFloat(row.latitude);
+
+        const ratingRows = await ratingModel.GetAllRatingsFromPropertyId(req.db, propertyId)
+        ratingRows.length < 1
+            ? row.averageRating = null
+            : row.averageRating = calculateAverageRating(ratingRows);
+
+        row.numRatings = ratingRows.length;
 
         if (Object.keys(ratingConditions).length > 0) {
             if (ratingConditions.minimumRating && average_rating < ratingConditions.minimumRating
@@ -233,7 +237,7 @@ export async function searchRentals(req, res) {
                 continue;
             }
         }
-        row.averageRating = average_rating === null ? 0 : average_rating;
+
         filteredRows.push(row);
     }
 
@@ -245,19 +249,37 @@ export async function getRentalFromId(req, res) {
     try {
         const rows = await rentalModel.GetProperty(req.db, id);
         if (rows.length !== 1) {
-            return res.status(404).json({
-                error: "true",
-                message: "No rental exists with this ID."
-            });
+            return res.status(404).json(errorResponse("No rental exists with this ID."));
         }
 
-        const ratings = await ratingModel.GetAllRatingsFromId(req.db, id);
-        const averageRating = calculateAverageRating(ratings);
+        const ratingRows = await ratingModel.GetAllRatingsFromPropertyId(req.db, id);
+
+        let averageRating = null;
+        let numRatings = 0;
+        const reviews = [];
+
+        if (ratingRows.length > 0) {
+            const ratings = [];
+            for (const row of ratingRows) {
+                row.userId = undefined;
+                row.comment = row.comment == null ? undefined : row.comment;
+                reviews.push(row);
+                ratings.push(row.rating);
+            }
+            numRatings = ratingRows.length;
+            averageRating = calculateAverageRating(ratings);
+        }
 
         const property = rows[0];
-        property.reviews = ratings;
         property.averageRating = averageRating;
+        property.numRatings = numRatings;
+        property.reviews = reviews;
+
+        property.longitude = parseFloat(property.longitude);
+        property.latitude = parseFloat(property.latitude);
+
         return res.status(200).json(rows[0]);
+
     } catch (e) {
         res.status(500).json({
             error: true,

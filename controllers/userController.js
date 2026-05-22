@@ -137,19 +137,18 @@ export async function getUserProfileFromEmail(req, res) {
         let profile = rows[0];
         let data;
         if (req.params.tokenEmail !== null && req.params.tokenEmail === profile.email) {
-            profile.dobISO = profile.dob.toISOString().split("T")[0];
             data = {
                 "email": profile.email,
-                "firstName": profile.firstName,
-                "lastName": profile.lastName,
-                "dob": profile.dobISO,
-                "address": profile.address
+                "firstName": profile.firstName ? profile.firstName: null,
+                "lastName": profile.lastName ? profile.lastName : null,
+                "dob": profile.dob ? profile.dob : null,
+                "address": profile.address ? profile.address : null
             };
         } else {
             data = {
                 "email": profile.email,
-                "firstName": profile.firstName,
-                "lastName": profile.lastName,
+                "firstName": profile.firstName ? profile.firstName: null,
+                "lastName": profile.lastName ? profile.lastName : null
             };
         }
         return res.status(200).json(data);

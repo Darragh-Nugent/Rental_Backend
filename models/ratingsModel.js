@@ -1,16 +1,10 @@
-export async function GetAllRatingsFromId(db, propertyId) {
+export async function GetAllRatingsFromPropertyId(db, propertyId) {
     return await db
         .from("ratings")
-        .select("rating")
+        .join("users", "ratings.userId", "=", "users.userId")
+        .select("rating", "users.email as user", "comment", "dateTime")
         .where("propertyId", '=', propertyId);
 };
-
-export async function GetAllUserRatingsForProperty(db, userId, propertyId) {
-    return await db
-    .from("ratings")
-    .select("*")
-    .where("propertyId", "=", propertyId, "and", "userId", '=', userId);
-}
 
 export async function DeleteAllRatings(db) {
     return await db
