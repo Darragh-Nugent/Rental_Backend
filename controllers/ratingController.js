@@ -10,8 +10,32 @@ export async function DeleteAllRatings(req, res) {
 
 export async function GetAllUserRatings(req, res) {
     try {
-        const rows = await ratingModel.GetRatingsFromUserEmail(req.db, req.params.tokenEmail);
-        res.status(200).json(rows)
+        if (!req.query.page || req.query.page < 1) {
+            return res.status(400)
+                .json(errorResponse("Invalid page parameter. Must be an integer greater than or equal to 1."));
+        }
+
+        const ratingsPerPage = 20;
+        const page = parseInt(req.query.page, 10);
+        const rows = await ratingModel.GetRatingsFromUserEmail(req.db, req.params.tokenEmail, page);
+
+        const numRatingsRows = await ratingModel.GetNumRatingsFromEmail(req.db, req.params.tokenEmail);
+        const numRatings = parseInt(numRatingsRows.count, 10);
+
+        const pagination = {
+            total: numRatings,
+            lastPage: Math.ceil(numRatings / ratingsPerPage),
+            prevPage: page - 1 == 0 ? null : page - 1,
+            nextPage: page == Math.ceil(numRatings / ratingsPerPage) ? null : page + 1,
+            perPage: 20,
+            currentPage: page,
+            from: (page - 1) * ratingsPerPage + 1,
+            to: Math.min(page * ratingsPerPage, numRatings)
+        }
+        res.status(200).json({
+            data: rows,
+            pagination: pagination
+        });
     } catch (e) {
         return res.status(500).json(errorResponse(e.message));
     }
@@ -36,11 +60,13 @@ export async function GetRating(req, res) {
             .json(errorResponse("No rating exists with this rental ID."));
     }
 
+
     const rating = ratingRows[0];
 
     if (!rating.comment || rating.comment.length < 1) {
         delete rating.comment
     }
+
 
     return res.status(200).json(rating);
 
@@ -60,7 +86,9 @@ export async function PostRating(req, res) {
     }
 
     const propertyId = req.params.id;
-    if (await rentalModel.GetProperty(req.db, propertyId).length < 1) {
+    try {
+        await rentalModel.GetProperty(req.db, propertyId).length < 1;
+    } catch {
         return res.status(404)
             .json(errorResponse("No rental exists with this ID."));
     }

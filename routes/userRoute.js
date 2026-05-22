@@ -12,7 +12,6 @@ router.post('/register', userController.register);
 
 router.get("/:email/profile", optionalAuthorisation, userController.getUserProfileFromEmail);
 
-
-router.put("/:email/profile", optionalAuthorisation, userController.putUserProfileFromEmail);
+router.put("/:email/profile", authorisation, userController.putUserProfileFromEmail);
 
 export default router;

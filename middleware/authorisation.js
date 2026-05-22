@@ -22,18 +22,16 @@ export const authorisation = (req, res, next) => {
 };
 
 export const optionalAuthorisation = (req, res, next) => {
-    if (!("authorization" in req.headers) || !req.headers.authorization.match(/^Bearer /)) {
+  if (!("authorization" in req.headers) || !req.headers.authorization.match(/^Bearer /)) {
     req.tokenEmail = null;
-    return;
-  }
-
-  const token = req.headers.authorization.replace(/^Bearer /, "");
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.params.tokenEmail = decoded.email;
-  } catch (e) {
-    req.tokenEmail = null;
-    return;
+  } else {
+    const token = req.headers.authorization.replace(/^Bearer /, "");
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.params.tokenEmail = decoded.email;
+    } catch (e) {
+      req.tokenEmail = null;
+    }
   }
 
   next();

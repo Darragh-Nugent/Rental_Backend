@@ -18,12 +18,23 @@ export async function DeleteAllRatings(db) {
     .del();
 }
 
-export async function GetRatingsFromUserEmail(db, email) {
+export async function GetRatingsFromUserEmail(db, email, page) {
     return await db
     .from('ratings')
     .join('users', 'ratings.userId', '=', 'users.userId')
     .select("ratings.propertyId", "ratings.rating", "ratings.comment", "ratings.dateTime")
-    .where("users.email", '=', email);   
+    .where("users.email", '=', email)
+    .limit(20)
+    .offset((page - 1) * 10);  
+}
+
+export async function GetNumRatingsFromEmail(db, email) {
+    return await db
+    .from('ratings')
+    .join('users', 'ratings.userId', '=', 'users.userId')
+    .where('users.email', '=', email)
+    .count('ratings.propertyId as count')
+    .first();
 }
 
 export async function GetRatingsFromUserIdAndPropertyId(db, userId, propertyId) {

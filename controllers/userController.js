@@ -8,7 +8,18 @@ import { errorResponse } from '../utils/utils.js';
 const checkIfDate = (date) => {
     // Created using altered varsion of this online regex generator https://regex101.com/r/z4KHFC/1
     const reg = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-    return date.match(reg);
+    if (!reg.test(date)) {
+        return false;
+    }
+
+    const [year, month, day] = date.split("-").map(s => parseInt(s));
+    const dateObj = new Date(year, month - 1, day);
+    return (
+        !isNaN(dateObj) &&
+        dateObj.getFullYear() === year &&
+        dateObj.getMonth() === month - 1 &&
+        dateObj.getDate() === day
+    );
 }
 
 export async function login(req, res) {
@@ -34,7 +45,7 @@ export async function login(req, res) {
 
     if (match) {
         // 2.1.1 If passwords match, return JWT
-        const expiresIn = 24 * 60 * 60 * 10;
+        const expiresIn = 24 * 60 * 60;
         const exp = Math.floor(Date.now() / 1000) + expiresIn;
         const token = jwt.sign({ exp, email }, process.env.JWT_SECRET);
         res.status(200).json({
@@ -116,19 +127,22 @@ export async function register(req, res) {
 
 export async function getUserProfileFromEmail(req, res) {
     try {
+        console.log("entered");
         const rows = await userModel.getUserFromEmail(req.db, req.params.email);
+        console.log("finished getting user");
         if (rows.length === 0) {
             return res.status(404).json(errorResponse("User not found"))
         }
 
         let profile = rows[0];
         let data;
-        if (req.params.token !== null && req.params.tokenEmail === profile.email) {
+        if (req.params.tokenEmail !== null && req.params.tokenEmail === profile.email) {
+            profile.dobISO = profile.dob.toISOString().split("T")[0];
             data = {
                 "email": profile.email,
                 "firstName": profile.firstName,
                 "lastName": profile.lastName,
-                "dob": profile.dob,
+                "dob": profile.dobISO,
                 "address": profile.address
             };
         } else {
