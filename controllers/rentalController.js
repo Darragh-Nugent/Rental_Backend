@@ -214,8 +214,9 @@ export async function searchRentals(req, res) {
     rows.forEach(row => {
         row.longitude = parseFloat(row.longitude);
         row.latitude = parseFloat(row.latitude);
+        row.averageRating = parseFloat(row.averageRating);
     })
-    
+
     // Create response data
     // const rentalCount = await rentalModel.GetRentalCount(req.db);
     const paginationData = {
