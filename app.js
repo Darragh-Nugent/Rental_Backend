@@ -4,10 +4,12 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path'
 import https from 'node:https';
-import fs from 'node:fs';import knexConfig from './knexfile.js';
+import fs from 'node:fs';
+import YAML from 'yaml';
+import knexConfig from './knexfile.js';
 import swaggerUI from 'swagger-ui-express';
 
-import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
+// import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
 import 'dotenv/config';
 
 import userRouter from './routes/userRoute.js';
@@ -35,6 +37,10 @@ app.use(morgan('common'));
 app.use('/user', userRouter);
 app.use('/ratings', ratingsRouter);
 app.use('/rentals', rentalRouter);
+
+const swaggerDocument = YAML.parse(
+  fs.readFileSync('./docs/rentals-openapi.yaml', 'utf8')
+);
 
 app.use('/docs', swaggerUI.serve);
 app.get('/docs', swaggerUI.setup(swaggerDocument));
