@@ -51,20 +51,20 @@ function getRangedData(field, modelField, searchParams) {
     if (searchParams["minimum" + field]) {
         minimum = searchParams["minimum" + field];
         if (!isNonNegativeInt(minimum)) {
-            return res.status(400).json(
-                errorResponse(`Invalid minimum${field} parameter. Must be a non-negative integer.`
-                ));
+            throw new Error(
+                `Invalid minimum${field} parameter. Must be a non-negative integer.`
+            );
         }
     }
     if (searchParams["maximum" + field]) {
         maximum = searchParams["maximum" + field];
         if (!isNonNegativeInt(maximum)) {
-            return res.status(400).json(
-                errorResponse(`Invalid maximum${field} parameter. Must be a non-negative integer.`
-                ));
+            throw new Error(
+                `Invalid maximum${field} parameter. Must be a non-negative integer.`
+            );
         }
     }
-    else { console.log("BAD")};
+    else { console.log("BAD") };
 
     return {
         field: modelField,
@@ -77,6 +77,7 @@ export async function searchRentals(req, res) {
 
     let searchConditions = {};
     let rangeConditions = [];
+    let setConditions = [];
     let ratingConditions = {};
     let sortOption = "";
     let sortDir = "asc";
@@ -98,57 +99,76 @@ export async function searchRentals(req, res) {
         searchConditions.postcode = postcode;
     }
 
-    if (searchParams.minimumRent || searchParams.maximumRent) {
-        rangeConditions.push(getRangedData("Rent", "rent", searchParams));
+    if (searchParams.propertyTypes) {
+        const propertyTypes = Array.isArray(searchParams.propertyTypes)
+        ? searchParams.propertyTypes
+        : [searchParams.propertyTypes];
+
+        setConditions.push({
+            field: "propertyType",
+            set: propertyTypes
+        });
     }
-    if (searchParams.minimumBedrooms || searchParams.maximumBedrooms) {
-        rangeConditions.push(getRangedData("Bedrooms", "bedrooms", searchParams));
-    }
-    if (searchParams.minimumBathrooms || searchParams.maximumBathrooms) {
-        rangeConditions.push(getRangedData("Bathrooms", "bathrooms", searchParams));
-    }
-    if (searchParams.minimumParking || searchParams.maximumParking) {
-        rangeConditions.push(getRangedData("Parking", "parkingSpaces", searchParams));
+
+    console.log(setConditions);
+
+    try {
+        if (searchParams.minimumRent || searchParams.maximumRent) {
+            rangeConditions.push(getRangedData("Rent", "rent", searchParams));
+        }
+        if (searchParams.minimumBedrooms || searchParams.maximumBedrooms) {
+            rangeConditions.push(getRangedData("Bedrooms", "bedrooms", searchParams));
+        }
+        if (searchParams.minimumBathrooms || searchParams.maximumBathrooms) {
+            rangeConditions.push(getRangedData("Bathrooms", "bathrooms", searchParams));
+        }
+        if (searchParams.minimumParking || searchParams.maximumParking) {
+            rangeConditions.push(getRangedData("Parking", "parkingSpaces", searchParams));
+        }
+        if (searchParams.minimumRating || searchParams.maximumRating) {
+            rangeConditions.push(getRangedData("Rating", "averageRating", searchParams));
+        }
+    } catch (e) {
+        return res.status(400).json(errorResponse(e.message));
     }
 
     // For rating conditions, add to seporate conditions object
-    if (searchParams.minimumRating) {
-        const minimumRating = searchParams.minimumRating;
-        if (!isNonNegativeInt(minimumRating)) {
-            return res.status(400).json(
-                errorResponse("Invalid minimumRating parameter. Must be a non-negative integer."
-                ));
-        }
-        ratingConditions.minimumRating = minimumRating;
-    }
-    if (searchParams.maximumRating) {
-        const maximumRating = searchParams.maximumRating;
-        if (!isNonNegativeInt(maximumRating)) {
-            return res.status(400).json(
-                errorResponse("Invalid maximumRating parameter. Must be a non-negative integer."
-                ));
-        }
-        searchConditions.maximumRating = maximumRating;
-    }
+    // if (searchParams.minimumRating) {
+    //     const minimumRating = searchParams.minimumRating;
+    //     if (!isNonNegativeInt(minimumRating)) {
+    //         return res.status(400).json(
+    //             errorResponse("Invalid minimumRating parameter. Must be a non-negative integer."
+    //             ));
+    //     }
+    //     ratingConditions.minimumRating = minimumRating;
+    // }
+    // if (searchParams.maximumRating) {
+    //     const maximumRating = searchParams.maximumRating;
+    //     if (!isNonNegativeInt(maximumRating)) {
+    //         return res.status(400).json(
+    //             errorResponse("Invalid maximumRating parameter. Must be a non-negative integer."
+    //             ));
+    //     }
+    //     searchConditions.maximumRating = maximumRating;
+    // }
 
     const sortOptions = [
         "suburb",
         "state",
         "postcode",
-        "minimumRent",
-        "maximumRent",
-        "minimumBathrooms",
-        "maximumBathrooms",
-        "minimumBedrooms",
-        "maximumBedroom",
-        "minimumParking",
-        "maximumParking",
-        "propertyTypes",
-        "minimumRating",
-        "maximumRating",
+        "rent",
+        "bathrooms",
+        "bedrooms",
+        "parkingSpaces",
+        "propertyType",
+        "averageRating",
+        "numRatings",
+        "latitude",
+        "longitude"
     ];
 
     if (searchParams.sortBy) {
+        console.log(searchParams.sortBy);
         if (!sortOptions.includes(searchParams.sortBy)) {
             return res.status(400).json(
                 errorResponse("Invalid sortBy parameter. Must refer to a valid sortable property.")
@@ -157,21 +177,23 @@ export async function searchRentals(req, res) {
         sortOption = searchParams.sortBy;
     }
 
-    if (searchParams.orderBy) {
+    if (searchParams.sortOrder) {
         if (!searchParams.sortBy) {
             return res.status(400).json(
                 errorResponse("Invalid sortOrder parameter. sortBy must be specified.")
             );
         }
-        if (!["asc", "desc"].includes(searchParams.orderBy)) {
+        if (!["asc", "desc"].includes(searchParams.sortOrder)) {
             return res.status(400).json(
                 errorResponse("Invalid sortOrder parameter. Must be 'asc' or 'desc'.")
             );
         }
-        sortDir = searchParams.orderBy;
+        sortDir = searchParams.sortOrder;
     }
 
-    if (!searchParams.page || !isNonNegativeInt(searchParams.page) || searchParams.page < 1) {
+    if (searchParams.page != undefined &&
+        !isNonNegativeInt(searchParams.page)
+        || searchParams.page < 1) {
         return res.status(400).json(
             errorResponse("Invalid page parameter. Must be an integer greater than or equal to 1.")
         );
@@ -180,56 +202,35 @@ export async function searchRentals(req, res) {
 
     const searchData = {
         searchConditions: searchConditions,
+        setConditions: setConditions,
         rangeConditions: rangeConditions,
         sortOption: sortOption,
         sortDir: sortDir,
         pageNum: pageNum
     };
 
-    const rows = await rentalModel.SearchProperties(req.db, searchData);
+    const [rows, total] = await rentalModel.SearchProperties(req.db, searchData);
 
-    let filteredRows = []
-    for (const row of rows) {
-        const propertyId = row.id;
-
+    rows.forEach(row => {
         row.longitude = parseFloat(row.longitude);
         row.latitude = parseFloat(row.latitude);
-
-        const ratingRows = await ratingModel.GetAllRatingsFromPropertyId(req.db, propertyId)
-        ratingRows.length < 1
-            ? row.averageRating = null
-            : row.averageRating = calculateAverageRating(ratingRows);
-
-        row.numRatings = ratingRows.length;
-
-        if (Object.keys(ratingConditions).length > 0) {
-            if (ratingConditions.minimumRating && average_rating < ratingConditions.minimumRating
-                || ratingConditions.maximumRating && average_rating > ratingConditions.maximumRating
-            ) {
-                continue;
-            }
-        }
-
-        filteredRows.push(row);
-    }
-
+    })
+    
     // Create response data
-
-    const rentalCount = await rentalModel.GetRentalCount(req.db);
-    console.log(rentalCount)
+    // const rentalCount = await rentalModel.GetRentalCount(req.db);
     const paginationData = {
         perPage: RESULTS_PER_PAGE,
         currentPage: pageNum,
-        from: pageNum - 1,
-        to: pageNum + Math.max(RESULTS_PER_PAGE, filteredRows.length) - 1,
-        total:  rentalCount[0].count,
-        lastPage: Math.ceil(rentalCount[0].count / RESULTS_PER_PAGE),
+        from: RESULTS_PER_PAGE * (pageNum - 1),
+        to: RESULTS_PER_PAGE * (pageNum - 1) + rows.length,
+        total: total,
+        lastPage: Math.ceil(total / RESULTS_PER_PAGE),
         prevPage: pageNum == 1 ? null : pageNum - 1,
-        nextPage: pageNum + RESULTS_PER_PAGE >= rentalCount[0].count ? null : pageNum + 1
+        nextPage: pageNum + RESULTS_PER_PAGE >= total / RESULTS_PER_PAGE ? null : pageNum + 1
     };
 
     const responseData = {
-        data: filteredRows,
+        data: rows,
         pagination: paginationData
     };
 

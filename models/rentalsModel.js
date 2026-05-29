@@ -1,3 +1,4 @@
+import { count } from "node:console";
 
 export async function GetStates(db) {
     return await db.from("data").distinct("state").orderBy("state");
@@ -16,21 +17,72 @@ export async function GetRentalCount(db) {
 }
 
 export async function SearchProperties(db, searchData) {
-    console.log(searchData.rangeConditions);
-    return await db
+    const properties = await db
         .from("data")
-        .select("*")
-        .count("id as total")
+        .leftJoin("ratings", "ratings.propertyId", "=", "data.id")
+        .select("data.*")
+        .avg("ratings.rating as averageRating")
+        .count("ratings.rating as numRatings")
         .where(searchData.searchConditions)
         .modify((queryBuilder) => {
-            console.log(searchData.rangeConditions);
-            searchData.rangeConditions.forEach(range => {
-                console.log(range);
-                queryBuilder.whereBetween(range.field, range.range);
+            searchData.setConditions.forEach(set => {
+                queryBuilder.whereIn(set.field, set.set)
             });
+
+            searchData.rangeConditions.forEach(range => {
+
+                if (range.field === "averageRating") {
+                    queryBuilder.havingBetween(
+                        "averageRating",
+                        range.range
+                    );
+                } else {
+                    queryBuilder.whereBetween(
+                        range.field,
+                        range.range
+                    );
+                }
+            });
+
             if (searchData.sortOption) {
                 queryBuilder.orderBy(searchData.sortOption, searchData.sortDir);
             }
-        }).limit(10)
+        })
+        .groupBy("data.id")
+        .limit(10)
         .offset((searchData.pageNum - 1) * 10);
-};
+
+    const total = await db
+        .from(function () {
+            this.from("data")
+                .leftJoin("ratings", "ratings.propertyId", "=", "data.id")
+                .select("data.id")
+                .avg("ratings.rating as averageRating")
+                .where(searchData.searchConditions)
+                .modify((queryBuilder) => {
+                    searchData.setConditions.forEach(set => {
+                        queryBuilder.whereIn(set.field, set.set)
+                    });
+
+                    searchData.rangeConditions.forEach(range => {
+                        if (range.field === "averageRating") {
+                            queryBuilder.havingBetween(
+                                "averageRating",
+                                range.range
+                            );
+                        } else {
+                            queryBuilder.whereBetween(
+                                range.field,
+                                range.range
+                            );
+                        }
+                    });
+                })
+                .groupBy("data.id")
+                .as("subquery")
+        })
+        .count("* as total")
+        .first();
+
+    return [properties, total.total];
+}
