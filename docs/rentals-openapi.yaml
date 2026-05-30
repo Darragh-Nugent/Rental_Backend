@@ -720,23 +720,35 @@ paths:
                   reviews:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        user:
-                          type: string
-                          example: john.doe@example.com
-                        rating:
-                          type: integer
-                          example: 4
-                        comment:
-                          type:
-                            - string
-                            - "null"
-                          example: Comfortable stay with good facilities.
-                        dateTime:
-                          type: string
-                          format: date-time
-                          example: 2026-03-13T21:51:48.752Z
+                      oneOf:
+                      - type: object
+                        properties:
+                          user:
+                            type: string
+                            example: john.doe@example.com
+                          rating:
+                            type: integer
+                            example: 4
+                          comment:
+                            type:
+                              - string
+                            example: Comfortable stay with good facilities.
+                          dateTime:
+                            type: string
+                            format: date-time
+                            example: 2026-03-13T21:51:48.752Z
+                      - type: object
+                        properties:
+                          user:
+                            type: string
+                            example: john.doe@example.com
+                          rating:
+                            type: integer
+                            example: 4
+                          dateTime:
+                            type: string
+                            format: date-time
+                            example: 2026-03-13T21:51:48.752Z
                     example:
                       - rating: 4
                         user: john.doe@example.com
@@ -819,26 +831,41 @@ paths:
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        rentalId:
-                          type: integer
-                          examples:
-                            - 1234
-                        rating:
-                          type: integer
-                          examples:
-                            - 3
-                        comment:
-                          type: string
-                          required: false
-                          examples:
-                            - "Decent value for money, 
-                              but the landlord was very intrusive and annoying."
-                        dateTime:
-                          type: string
-                          examples:
-                            - 2026-03-14T23:47:45.371Z
+                      oneOf:
+                      - type: object
+                        properties:
+                          rentalId:
+                            type: integer
+                            examples:
+                              - 1234
+                          rating:
+                            type: integer
+                            examples:
+                              - 3
+                          comment:
+                            type: string
+                            required: false
+                            examples:
+                              - "Decent value for money, 
+                                but the landlord was very intrusive and annoying."
+                          dateTime:
+                            type: string
+                            examples:
+                              - 2026-03-14T23:47:45.371Z
+                      - type: object
+                        properties:
+                          rentalId:
+                            type: integer
+                            examples:
+                              - 1234
+                          rating:
+                            type: integer
+                            examples:
+                              - 3
+                          dateTime:
+                            type: string
+                            examples:
+                              - 2026-03-14T23:47:45.371Z
                     examples:
                       - - rentalId: 1
                           rating: 3
@@ -987,7 +1014,8 @@ paths:
                     examples:
                       - 3
                   comment:
-                    type: string
+                    type: 
+                      - string
                     required: false
                     examples:
                       - "Decent value for money, 
@@ -1096,12 +1124,14 @@ paths:
         - bearerAuth: []
       requestBody:
         description: An object containing an integer from 1-5 indicating the rating to
-          be given to the rental property.
+          be given to the rental property. Optionally, a comment can be added as well.
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - rating
               properties:
                 rating:
                   type: integer
@@ -1113,7 +1143,6 @@ paths:
                     - 5
                 comment:
                   type: string
-                  required: false
                   examples: 
                     - "Decent value for money, but the landlord was 
                       very intrusive and annoying."
@@ -1255,36 +1284,59 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  email:
-                    type: string
-                    example: mike@gmail.com
+                oneOf:
+                - type: object
+                  description: Only returned when the authenticated user owns the profile.
+                  properties:
+                    email:
+                      type: string
+                      example: mike@gmail.com
 
-                  firstName:
-                    type: string
-                    nullable: true
-                    example: Michael
+                    firstName:
+                      type:
+                        - string
+                        - "null"
+                      example: Michael
 
-                  lastName:
-                    type: string
-                    nullable: true
-                    example: Jordan
+                    lastName:
+                      type:
+                        - string
+                        - "null"
+                      example: Jordan
 
-                  dob:
-                    type: string
-                    format: date
-                    nullable: true
-                    description: >
-                      Only returned when the authenticated user owns the profile.
-                    example: 1963-02-17
+                    dob:
+                      type:
+                        - string
+                        - "null"
+                      format: date
+                      example: 1963-02-17
 
-                  address:
-                    type: string
-                    nullable: true
-                    description: >
-                      Only returned when the authenticated user owns the profile.
-                    example: 123 Fake Street, Springfield
+                    address:
+                      type:
+                        - string
+                        - "null"
+                      nullable: true
+                      example: 123 Fake Street, Springfield
+
+                - type: object
+                  description: Only returned when the user is unauthenticated or
+                    doesn't own the profile.
+                  properties:
+                    email:
+                      type: string
+                      example: mike@gmail.com
+
+                    firstName:
+                      type:
+                        - string
+                        - "null"
+                      example: Michael
+
+                    lastName:
+                      type:
+                        - string
+                        - "null"
+                      example: Jordan
         "401":
           description: Unauthorized. Click on 'Schema' below to see the possible error
             responses.
@@ -1356,23 +1408,19 @@ paths:
 
                 firstName:
                   type: string
-                  nullable: true
                   example: Michael
 
                 lastName:
                   type: string
-                  nullable: true
                   example: Jordan
 
                 dob:
                   type: string
                   format: date
-                  nullable: true
                   example: 1963-02-17
 
                 address:
                   type: string
-                  nullable: true
                   example: 123 Fake Street, Springfield
                 
       responses:
