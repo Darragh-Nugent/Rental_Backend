@@ -2,7 +2,6 @@ import express from 'express';
 import {authorisation} from '../middleware/authorisation.js';
 import noQueryParameters from '../middleware/middleware.js';
 import * as ratingController from "../controllers/ratingController.js";
-import { errorResponse } from '../utils/utils.js';
 
 const router = express.Router();
 

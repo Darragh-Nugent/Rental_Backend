@@ -6,6 +6,16 @@ export async function GetAllRatingsFromPropertyId(db, propertyId) {
         .where("propertyId", '=', propertyId);
 };
 
+export async function GetAvgRatingsFromPropertyId(db, propertyId) {
+    const avgRating = await db
+        .from("ratings")
+        .join("users", "ratings.userId", "=", "users.userId")
+        .avg("rating as avgRating")
+        .where("propertyId", '=', propertyId)
+        .first()
+    return avgRating.avgRating;
+}
+
 export async function DeleteAllRatings(db) {
     return await db
     .from("ratings")

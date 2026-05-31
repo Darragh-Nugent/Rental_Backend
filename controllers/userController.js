@@ -12,6 +12,7 @@ const checkIfDate = (date) => {
         return false;
     }
 
+    // Validate date manually to circumvent roll over
     const [year, month, day] = date.split("-").map(s => parseInt(s));
     const dateObj = new Date(year, month - 1, day);
     return (
@@ -22,6 +23,7 @@ const checkIfDate = (date) => {
     );
 }
 
+// Largely taken from tutorial work
 export async function login(req, res) {
     // 1. Retrieve email and password from req.body
     const { email, password } = req.body ?? {};
@@ -34,11 +36,13 @@ export async function login(req, res) {
         });
         return;
     }
+
     // 2. Determine if user already exists in table
     const users = await userModel.getUserFromEmail(req.db, email);
     if (users.length === 0) {
         return res.status(401).json(errorResponse("Incorrect email or password"))
     }
+
     // 2.1 If user does exist, verify if passwords match
     const { hash } = users[0];
     const match = await argon2.verify(hash, password);
@@ -59,6 +63,7 @@ export async function login(req, res) {
     }
 }
 
+// Same as login but with a JWT expiry time of 1 second
 export async function debugLogin(req, res) {
     // 1. Retrieve email and password from req.body
     const { email, password } = req.body ?? {};
@@ -71,12 +76,14 @@ export async function debugLogin(req, res) {
         });
         return;
     }
+
     // 2. Determine if user already exists in table
     const users = await userModel.getUserFromEmail(req.db, email);
 
     if (users.length === 0) {
         return res.status(401).json(errorResponse("Incorrect email or password"))
     }
+
     // 2.1 If user does exist, verify if passwords match
     const { hash } = users[0];
     const match = await argon2.verify(hash, password);
@@ -96,6 +103,7 @@ export async function debugLogin(req, res) {
     }
 }
 
+// Largely taken from tutorial work
 export async function register(req, res) {
     try {
         // 1. Retrieve email and password from req.body
@@ -115,6 +123,7 @@ export async function register(req, res) {
             // 2.1 If user does exist, return error response
             return res.status(409).json(errorResponse("User already exists"));
         }
+
         // 2.2 If user does not exist, insert into table
         const hash = await argon2.hash(password);
 
@@ -127,15 +136,14 @@ export async function register(req, res) {
 
 export async function getUserProfileFromEmail(req, res) {
     try {
-        console.log("entered");
         const rows = await userModel.getUserFromEmail(req.db, req.params.email);
-        console.log("finished getting user");
         if (rows.length === 0) {
             return res.status(404).json(errorResponse("User not found"))
         }
 
         let profile = rows[0];
         let data;
+        // Check is user is the owner of the requested profile
         if (req.params.tokenEmail !== null && req.params.tokenEmail === profile.email) {
             data = {
                 "email": profile.email,
@@ -152,6 +160,7 @@ export async function getUserProfileFromEmail(req, res) {
             };
         }
         return res.status(200).json(data);
+
     } catch (e) {
         res.status(500).json({ error: true, message: e.message });
     };
@@ -215,8 +224,8 @@ export async function putUserProfileFromEmail(req, res) {
 
         // Update user
         await userModel.putUserProfile(req.db, profile);
-
         return res.status(200).json(profile);
+        
     } catch (e) {
         return res.status(500).json(errorResponse(e.message));
     }

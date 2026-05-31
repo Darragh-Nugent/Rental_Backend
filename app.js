@@ -8,21 +8,17 @@ import fs from 'node:fs';
 import YAML from 'yaml';
 import knexConfig from './knexfile.js';
 import swaggerUI from 'swagger-ui-express';
-
-// import swaggerDocument from './docs/rentals-openapi.json' with { type: 'json' };
 import 'dotenv/config';
 
 import userRouter from './routes/userRoute.js';
 import ratingsRouter from './routes/ratingsRoute.js';
 import rentalRouter from './routes/rentalRoute.js'
 
-
 const app = express();
 const port = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), {flags: 'a'});
-
+// Add database connection to request
 const db = knex(knexConfig);
 app.use((req, res, next) => {
     req.db = db;
@@ -38,21 +34,18 @@ app.use('/user', userRouter);
 app.use('/ratings', ratingsRouter);
 app.use('/rentals', rentalRouter);
 
+// Connect swagger documentation
 const swaggerDocument = YAML.parse(
   fs.readFileSync('./docs/rentals-openapi.yaml', 'utf8')
 );
-
 app.use('/docs', swaggerUI.serve);
 app.get('/docs', swaggerUI.setup(swaggerDocument));
 
+// Logging
 morgan.token('res', (req, res) => {
   const headers = {};
   res.getHeaderNames().map(h => headers[h] = res.getHeader(h));
   return JSON.stringify(headers);
-});
-
-app.get('/', (req, res) => {
-  res.send('Hello world');
 });
 
 app.get("/knex", (req, res, next) => {
@@ -67,6 +60,7 @@ app.get("/knex", (req, res, next) => {
   });
 });
 
+// HTTPS credentials and server
 const credentials = {
   key: fs.readFileSync('./certs/selfsigned.key'),
   cert: fs.readFileSync('./certs/selfsigned.crt')
